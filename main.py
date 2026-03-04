@@ -1,13 +1,10 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from config import settings, engine, Base
-from routes.farmer import router as farmer_router
+from config import settings
+from routes.farmer_mock import router as farmer_router
 from routes.auth import router as auth_router
 from utils.logger import logger
 from utils.exceptions import CarbonSakthiException
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=settings.app_name,
@@ -28,7 +25,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_router, prefix=f"{settings.api_v1_str}/auth", tags=["Authentication"])
-app.include_router(farmer_router, prefix=f"{settings.api_v1_str}", tags=["Farmers"])
+app.include_router(farmer_router, prefix=settings.api_v1_str, tags=["Farmers"])
 
 @app.get("/")
 async def root():
@@ -62,9 +59,10 @@ async def health_check():
 @app.exception_handler(CarbonSakthiException)
 async def carbonsakthi_exception_handler(request, exc: CarbonSakthiException):
     logger.error(f"CarbonSakthiException: {exc.message}")
-    return HTTPException(
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
         status_code=exc.status_code,
-        detail={
+        content={
             "message": exc.message,
             "details": exc.details
         }
@@ -73,9 +71,10 @@ async def carbonsakthi_exception_handler(request, exc: CarbonSakthiException):
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc: Exception):
     logger.error(f"Unhandled exception: {str(exc)}")
-    return HTTPException(
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
         status_code=500,
-        detail="Internal server error"
+        content="Internal server error"
     )
 
 if __name__ == "__main__":
